@@ -46,24 +46,34 @@ def get_distance(start, end):
     x = end[0] - start[0]
     y = end[1] - start[1]
     z = end[2] - start[2]
-    distance = math.sqrt((x)**2 + (y)**2 + (z)**2)
-    return distance
+    return math.sqrt((x)**2 + (y)**2 + (z)**2)
 
 def get_armature_uses_action(armature, action):
-    return True if any(fc.data_path.partition('"')[2].split('"')[0] in armature.data.bones for fc in action.fcurves) else False
+    return any(
+        (
+            fc.data_path.partition('"')[2].split('"')[0] in armature.data.bones
+            for fc in action.fcurves
+        )
+    )
 
 def get_armature_has_bones(armature, bones):
-    return False if any(b.name not in armature.data.bones for b in bones) else True
+    return all(b.name in armature.data.bones for b in bones)
 
 def get_armature_has_proportions(armature, bones):
-    return False if any(b.head_local != armature.data.bones[b.name].head_local for b in bones) else True
+    return all(
+        b.head_local == armature.data.bones[b.name].head_local for b in bones
+    )
 
 def get_armature_has_directions(armature, bones):
-    return False if any(b.y_axis != armature.data.bones[b.name].y_axis for b in bones) else True
+    return all(b.y_axis == armature.data.bones[b.name].y_axis for b in bones)
 
 def get_action_bone_names(action, armature=None):
-    return {fc.data_path.partition('"')[2].split('"')[0] : True if armature != None and fc.data_path.partition('"')[2].split('"')[0] in armature.pose.bones else False
-        for fc in action.fcurves if fc.data_path.startswith("pose.bones")}
+    return {
+        fc.data_path.partition('"')[2].split('"')[0]: armature != None
+        and fc.data_path.partition('"')[2].split('"')[0] in armature.pose.bones
+        for fc in action.fcurves
+        if fc.data_path.startswith("pose.bones")
+    }
 
 def scale_objects(unit_scaling, apply_loc, apply_rot):
     # clearing any transforms we don't want applied...
@@ -103,7 +113,7 @@ def set_root(armature, length):
     root_eb = armature.data.edit_bones.new(armature.name)
     root_eb.length, root_eb.matrix = length, armature.matrix_parent_inverse.copy()
     # and parent any parentless bones to it...
-    for e_bone in [eb for eb in armature.data.edit_bones if eb.parent == None]:
+    for e_bone in [eb for eb in armature.data.edit_bones if eb.parent is None]:
         e_bone.parent = root_eb
     if armature.mode != last_mode:
         bpy.ops.object.mode_set(mode=last_mode)
@@ -123,13 +133,18 @@ def load_armature(self, templates):
     armature, sub_path = None, os.path.join(prefs.resources, "armatures")
     for library in templates[template]['armatures'].keys():
         # load the template things from their library .blend...
-        with bpy.data.libraries.load(os.path.join(sub_path, library + ".blend"), link=False, relative=False) as (data_from, data_to):
+        with bpy.data.libraries.load(os.path.join(sub_path, f"{library}.blend"), link=False, relative=False) as (data_from, data_to):
             # the objects we want to pull through... (if we have rigging meshes/curves they should get pulled in as a dependency)
-            data_to.objects = [o for o in data_from.objects if o.endswith("Skeleton" + rigging)]
-        # there should only be one armature... (for now)
-        armatures = [ob for ob in data_to.objects if ob is not None and ob.type == 'ARMATURE']
-        
-        if armatures:
+            data_to.objects = [
+                o
+                for o in data_from.objects
+                if o.endswith(f"Skeleton{rigging}")
+            ]
+        if armatures := [
+            ob
+            for ob in data_to.objects
+            if ob is not None and ob.type == 'ARMATURE'
+        ]:
             armature = armatures[0]
             armature.name, armature.data.name = library, library
             # if we are rescaling objects...
@@ -158,9 +173,13 @@ def load_meshes(self, templates, armature):
     meshes, sub_path = [], os.path.join(prefs.resources, "meshes")
     for library in templates[template]['meshes'].keys():
         # load the template things from their library .blend...
-        with bpy.data.libraries.load(os.path.join(sub_path, library + ".blend"), link=False, relative=False) as (data_from, data_to):
+        with bpy.data.libraries.load(os.path.join(sub_path, f"{library}.blend"), link=False, relative=False) as (data_from, data_to):
             # the objects we want to pull through...
-            data_to.objects = [o for o in data_from.objects] if self.lods else [o for o in data_from.objects if o.endswith("_LOD0")]
+            data_to.objects = (
+                list(data_from.objects)
+                if self.lods
+                else [o for o in data_from.objects if o.endswith("_LOD0")]
+            )
         # then we may need to scale/instance them...
         objects = [ob for ob in data_to.objects if ob is not None]
         for obj in objects:
@@ -173,8 +192,11 @@ def load_meshes(self, templates, armature):
             # maybe instance it from an existing mesh...
             mesh = obj.data
             if self.instance:
-                existing = [me for me in bpy.data.meshes if me != mesh and mesh.name.startswith(me.name)]
-                if existing:
+                if existing := [
+                    me
+                    for me in bpy.data.meshes
+                    if me != mesh and mesh.name.startswith(me.name)
+                ]:
                     obj.data = existing[0]
                     bpy.data.meshes.remove(mesh)
                 else:
@@ -200,29 +222,42 @@ def load_materials(self, templates, meshes):
     sub_path = os.path.join(prefs.resources, "materials")
     for library, slot in templates[template]['materials'].items():
         # load the template things from their library .blend...
-        with bpy.data.libraries.load(os.path.join(sub_path, library + ".blend"), link=False, relative=False) as (data_from, data_to):
+        with bpy.data.libraries.load(os.path.join(sub_path, f"{library}.blend"), link=False, relative=False) as (data_from, data_to):
             # the objects we want to pull through...
-            data_to.materials, data_to.images, data_to.node_groups = [m for m in data_from.materials], [i for i in data_from.images], [n for n in data_from.node_groups]
+            data_to.materials, data_to.images, data_to.node_groups = (
+                list(data_from.materials),
+                list(data_from.images),
+                list(data_from.node_groups),
+            )
         # we might be remapping materials...
         material = data_to.materials[0]
         if self.remap:
-            existing = [ma for ma in bpy.data.materials if ma != material and material.name.startswith(ma.name)]
-            if existing:
+            if existing := [
+                ma
+                for ma in bpy.data.materials
+                if ma != material and material.name.startswith(ma.name)
+            ]:
                 material.user_remap(existing[0])
                 bpy.data.materials.remove(material)
                 material = existing[0]
         # always remap to existing nodes... (0 user nodes don't get cleaned up)
         for nod in data_to.node_groups:
             if nod is not None:
-                nodes = [no for no in bpy.data.node_groups if no != nod and nod.name.startswith(no.name)]
-                if nodes:
+                if nodes := [
+                    no
+                    for no in bpy.data.node_groups
+                    if no != nod and nod.name.startswith(no.name)
+                ]:
                     nod.user_remap(nodes[0])
                     bpy.data.node_groups.remove(nod)
         # images are heavy on file size so always remap them if possible... (even if material isn't being remapped)
         for img in data_to.images:
             if img is not None:
-                images = [im for im in bpy.data.images if im != img and img.filepath == im.filepath]
-                if images:
+                if images := [
+                    im
+                    for im in bpy.data.images
+                    if im != img and img.filepath == im.filepath
+                ]:
                     img.user_remap(images[0])
                     bpy.data.images.remove(img)
                 else:
@@ -318,7 +353,7 @@ def export_s2u(use_selection): # ONLY SUPPORTS MESHES AND ARMATURES COME BACK AN
             if name in bpy.context.scene.collection.children:
                 coll = bpy.context.scene.collection.children[name]
                 # and clear its current objects... (if any)
-                coll_objs = [ob for ob in coll.objects]
+                coll_objs = list(coll.objects)
                 for coll_obj in coll_objs:
                     coll.objects.unlink(coll_obj)
             else:

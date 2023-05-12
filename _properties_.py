@@ -194,10 +194,7 @@ class JK_PG_MMT_Object(bpy.types.PropertyGroup):
         if self.id_data.type == 'ARMATURE':
             flavour = 'ACTION'
         elif self.id_data.type == 'MESH':
-            if self.id_data.find_armature():
-                flavour = 'SKELETAL'
-            else:
-                flavour = 'STATIC'
+            flavour = 'SKELETAL' if self.id_data.find_armature() else 'STATIC'
         return flavour
 
     def update_flavour(self, context):

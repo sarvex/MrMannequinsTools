@@ -86,7 +86,7 @@ def jk_mmt_enable_addons():
         if name in versions:
             # if the right version is not installed...
             if version != versions[name]:
-                zip_file = name + "-" + str(version[0]) + "." + str(version[1]) + ".zip"
+                zip_file = f"{name}-{str(version[0])}.{str(version[1])}.zip"
                 # remove and reinstall from the version that shipped with Mr Mannequins...
                 override = bpy.context.copy()
                 override['area'] = bpy.context.window_manager.windows[0].screen.areas[0]
@@ -98,7 +98,7 @@ def jk_mmt_enable_addons():
                 bpy.ops.preferences.addon_enable(module=name)
         else:
             # otherwise it wasn't installed, so install and enable it...
-            zip_file = name + "-" + str(version[0]) + "." + str(version[1]) + ".zip"
+            zip_file = f"{name}-{str(version[0])}.{str(version[1])}.zip"
             bpy.ops.preferences.addon_install(filepath=os.path.join(resources, zip_file))
             bpy.ops.preferences.addon_enable(module=name)
     # we'll need to update all driver dependencies... (why doesn't blender have an operator for this?)

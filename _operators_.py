@@ -38,12 +38,13 @@ class JK_OT_MMT_Add_FBX_Settings(bpy.types.Operator):
                         # if it isn't the property RNA or name...
                         if fbx_prop.identifier not in ["rna_type", "name"]:
                             # set the new property to the current property...
-                            #setattr() 
-                            exec("new_props.fbx_props." + fbx_prop.identifier + " = current_props.fbx_props." + fbx_prop.identifier)
-                # else if it isn't the property RNA or name...    
+                            #setattr()
+                            exec(
+                                f"new_props.fbx_props.{fbx_prop.identifier} = current_props.fbx_props.{fbx_prop.identifier}"
+                            )
                 elif prop.identifier not in ["rna_type", "name"]:
                     # set the new property to the current property...
-                    exec("new_props." + prop.identifier + " = current_props." + prop.identifier)
+                    exec(f"new_props.{prop.identifier} = current_props.{prop.identifier}")
         else:
             print(self.name, "is already being used to label settings!")
         return {'FINISHED'}
@@ -100,20 +101,17 @@ class JK_OT_MMT_Reopen_Op(bpy.types.Operator):
             # get all the temporary file browser windows... (there can only be one)
             temp_screens = [sc for sc in bpy.data.screens if sc.name.startswith("temp") and any(area.type == 'FILE_BROWSER' for area in sc.areas)]
             # if we have a temporary file browsing screen...
-            if len(temp_screens) > 0:
-                # set the was browsing boolean True if it was false...
-                if not self.was_browsing:
-                    self.was_browsing = True
+            if temp_screens and not self.was_browsing:
+                self.was_browsing = True
             # if we are not browsing files or we have finished browsing files...
-            if len(temp_screens) == 0:
+            if not temp_screens:
                 # increment the iter...
                 self._iter = self._iter + 1
                 # if we never browsed after several checks then we cancel... (the temp screen doesn't pop straight away)
                 if self._iter > 5 and not self.was_browsing:
                     self.cancel(context)
                     return {'CANCELLED'}
-                # otherwise if we were browsing and have stopped...
-                elif self.was_browsing and len(temp_screens) == 0:
+                elif self.was_browsing:
                     # set the cursor back to where it was when this operator was called...
                     context.window.cursor_warp(self.mouse_x, self.mouse_y)
                     # re-open the relevent operator and cancel the modal timer...
@@ -154,9 +152,9 @@ class JK_OT_MMT_Export_FBX(bpy.types.Operator):
             # fire this function that can optionally bypass the collections...
             _functions_.export_s2u(eport.from_selection)
         else:
-            # if auto keying is enabled...
-            auto_key = bpy.context.scene.tool_settings.use_keyframe_insert_auto
-            if auto_key:
+            if (
+                auto_key := bpy.context.scene.tool_settings.use_keyframe_insert_auto
+            ):
                 # turn it off before exporting...
                 bpy.context.scene.tool_settings.use_keyframe_insert_auto = False
             _functions_.run_export(eport)
